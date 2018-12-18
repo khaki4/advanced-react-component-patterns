@@ -1,28 +1,24 @@
-import React, { Component } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from 'react'
+import { Switch } from './switch'
 
-class App extends Component {
+class Toggle extends React.Component {
+  state = {on: false}
+  toggle = () =>
+    this.setState(
+      ({ on }) => ({ on: !on }),
+      () => {
+        this.props.onToggle(this.state.on);
+      },
+    )
   render() {
-    return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <p>
-            Edit <code>src/App.js</code> and save to reload.
-          </p>
-          <a
-            className="App-link"
-            href="https://reactjs.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Learn React
-          </a>
-        </header>
-      </div>
-    );
+    return <Switch on={this.state.on} onClick={this.toggle} />
   }
 }
+const onToggle = (...args) => console.log('onToggle', ...args)
+const Usage = () => {
+  return <Toggle onToggle={onToggle}/>
+}
 
-export default App;
+Usage.title = 'Build Toggle'
+
+export { Toggle, Usage as default }
