@@ -4,22 +4,31 @@ import { Switch } from './switch'
 const callAll = (...fns) => (...args) => fns.map(fn => fn && fn(...args));
 
 class Toggle extends React.Component {
-  state = {on: false}
+  static defaultProps = {
+    initialOn: false,
+    onReset: () => {},
+  }
+  initialState = {on: this.props.initialOn}
+  state = this.initialState
+  reset = () =>
+    this.setState(this.initialState, () =>
+      this.props.onReset(this.state.on),
+    )
   toggle = () =>
     this.setState(
       ({on}) => ({on: !on}),
       () => this.props.onToggle(this.state.on),
     )
-  getTogglerProps = ({onClick, className, ...props} = {}) => ({
-    'aria-pressed': this.state.on,
+  getTogglerProps = ({onClick, ...props} = {}) => ({
     onClick: callAll(onClick, this.toggle),
-    className: `${className} our-custom-class-name`,
+    'aria-pressed': this.state.on,
     ...props,
   })
   getStateAndHelpers() {
     return {
       on: this.state.on,
       toggle: this.toggle,
+      reset: this.reset,
       getTogglerProps: this.getTogglerProps,
     }
   }
@@ -29,26 +38,21 @@ class Toggle extends React.Component {
 }
 
 function Usage({
+   initialOn = false,
    onToggle = (...args) => console.log('onToggle', ...args),
-   onButtonClick = () => console.log('onButtonClick'),
+   onReset = (...args) => console.log('onReset', ...args),
  }) {
   return (
-    <Toggle onToggle={onToggle}>
-      {({on, getTogglerProps}) => (
+    <Toggle
+      initialOn={initialOn}
+      onToggle={onToggle}
+      onReset={onReset}
+    >
+      {({getTogglerProps, on, reset}) => (
         <div>
           <Switch {...getTogglerProps({on})} />
           <hr />
-          <button
-            {...getTogglerProps({
-              'aria-pressed': null,
-              'aria-label': 'custom-button',
-              onClick: onButtonClick,
-              id: 'custom-button-id',
-            })}
-            onClick={onButtonClick}
-          >
-            {on ? 'on' : 'off'}
-          </button>
+          <button onClick={() => reset()}>Reset</button>
         </div>
       )}
     </Toggle>
