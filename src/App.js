@@ -7,15 +7,33 @@ class Toggle extends React.Component {
   static defaultProps = {
     initialOn: false,
     onReset: () => {},
+    stateReducer: (state, changes) => changes,
   }
   initialState = {on: this.props.initialOn}
   state = this.initialState
+  internalSetState(changes, callback) {
+    this.setState(state => {
+      // handle function setState call
+      const changesObject =
+        typeof changes === 'function' ? changes(state) : changes
+
+      // apply state reducer
+      const reducedChanges =
+        this.props.stateReducer(state, changesObject) || {}
+
+      // return null if there are no changes to be made
+      // (to avoid an unecessary rerender)
+      return Object.keys(reducedChanges).length
+        ? reducedChanges
+        : null
+    }, callback)
+  }
   reset = () =>
-    this.setState(this.initialState, () =>
+    this.internalSetState(this.initialState, () =>
       this.props.onReset(this.state.on),
     )
   toggle = () =>
-    this.setState(
+    this.internalSetState(
       ({on}) => ({on: !on}),
       () => this.props.onToggle(this.state.on),
     )
@@ -37,26 +55,60 @@ class Toggle extends React.Component {
   }
 }
 
-function Usage({
-   initialOn = false,
-   onToggle = (...args) => console.log('onToggle', ...args),
-   onReset = (...args) => console.log('onReset', ...args),
- }) {
-  return (
-    <Toggle
-      initialOn={initialOn}
-      onToggle={onToggle}
-      onReset={onReset}
-    >
-      {({getTogglerProps, on, reset}) => (
-        <div>
-          <Switch {...getTogglerProps({on})} />
-          <hr />
-          <button onClick={() => reset()}>Reset</button>
-        </div>
-      )}
-    </Toggle>
-  )
+class Usage extends React.Component {
+  static defaultProps = {
+    onToggle: (...args) => console.log('onToggle', ...args),
+    onReset: (...args) => console.log('onReset', ...args),
+  }
+  initialState = {timesClicked: 0}
+  state = this.initialState
+  handleToggle = (...args) => {
+    this.setState(({timesClicked}) => ({
+      timesClicked: timesClicked + 1,
+    }))
+    this.props.onToggle(...args)
+  }
+  handleReset = (...args) => {
+    this.setState(this.initialState)
+    this.props.onReset(...args)
+  }
+  toggleStateReducer = (state, changes) => {
+    if (this.state.timesClicked >= 4) {
+      return {...changes, on: false}
+    }
+    return changes
+  }
+  render() {
+    const {timesClicked} = this.state
+    return (
+      <Toggle
+        stateReducer={this.toggleStateReducer}
+        onToggle={this.handleToggle}
+        onReset={this.handleReset}
+      >
+        {toggle => (
+          <div>
+            <Switch
+              {...toggle.getTogglerProps({
+                on: toggle.on,
+              })}
+            />
+            {timesClicked > 4 ? (
+              <div data-testid="notice">
+                Whoa, you clicked too much!
+                <br />
+              </div>
+            ) : timesClicked > 0 ? (
+              <div data-testid="click-count">
+                Click count: {timesClicked}
+              </div>
+            ) : null}
+            <button onClick={toggle.reset}>Reset</button>
+          </div>
+        )}
+      </Toggle>
+    )
+  }
 }
 
 export { Toggle, Usage as default }
