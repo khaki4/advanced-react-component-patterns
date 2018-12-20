@@ -9,6 +9,14 @@ class Toggle extends React.Component {
     onReset: () => {},
     stateReducer: (state, changes) => changes,
   }
+  // 💰 any time I use a string as an identifier for a type,
+  // I prefer to give it a variable name. That way folks who
+  // want to reference the type can do so using variable which
+  // will help mitigate the problems of indirection.
+  static stateChangeTypes = {
+    reset: '__toggle_reset__',
+    toggle: '__toggle_toggle__',
+  }
   initialState = {on: this.props.initialOn}
   state = this.initialState
   internalSetState(changes, callback) {
@@ -21,24 +29,26 @@ class Toggle extends React.Component {
       const reducedChanges =
         this.props.stateReducer(state, changesObject) || {}
 
+      // remove the type so it's not set into state
+      const {type: ignoredType, ...onlyChanges} = reducedChanges
+
       // return null if there are no changes to be made
-      // (to avoid an unecessary rerender)
-      return Object.keys(reducedChanges).length
-        ? reducedChanges
-        : null
+      return Object.keys(onlyChanges).length ? onlyChanges : null
     }, callback)
   }
+
   reset = () =>
-    this.internalSetState(this.initialState, () =>
-      this.props.onReset(this.state.on),
-    )
-  toggle = () =>
     this.internalSetState(
-      ({on}) => ({on: !on}),
+      {...this.initialState, type: Toggle.stateChangeTypes.reset},
+      () => this.props.onReset(this.state.on),
+    )
+  toggle = ({type = Toggle.stateChangeTypes.toggle} = {}) =>
+    this.internalSetState(
+      ({on}) => ({type, on: !on}),
       () => this.props.onToggle(this.state.on),
     )
   getTogglerProps = ({onClick, ...props} = {}) => ({
-    onClick: callAll(onClick, this.toggle),
+    onClick: callAll(onClick, () => this.toggle()),
     'aria-pressed': this.state.on,
     ...props,
   })
@@ -73,6 +83,9 @@ class Usage extends React.Component {
     this.props.onReset(...args)
   }
   toggleStateReducer = (state, changes) => {
+    if (changes.type === 'forced') {
+      return changes
+    }
     if (this.state.timesClicked >= 4) {
       return {...changes, on: false}
     }
@@ -85,17 +98,22 @@ class Usage extends React.Component {
         stateReducer={this.toggleStateReducer}
         onToggle={this.handleToggle}
         onReset={this.handleReset}
+        ref={this.props.toggleRef}
       >
-        {toggle => (
+        {({on, toggle, reset, getTogglerProps}) => (
           <div>
             <Switch
-              {...toggle.getTogglerProps({
-                on: toggle.on,
+              {...getTogglerProps({
+                on: on,
               })}
             />
             {timesClicked > 4 ? (
               <div data-testid="notice">
                 Whoa, you clicked too much!
+                <br />
+                <button onClick={() => toggle({type: 'forced'})}>
+                  Force Toggle
+                </button>
                 <br />
               </div>
             ) : timesClicked > 0 ? (
@@ -103,7 +121,7 @@ class Usage extends React.Component {
                 Click count: {timesClicked}
               </div>
             ) : null}
-            <button onClick={toggle.reset}>Reset</button>
+            <button onClick={reset}>Reset</button>
           </div>
         )}
       </Toggle>
